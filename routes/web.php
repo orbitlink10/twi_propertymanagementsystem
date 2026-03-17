@@ -11,25 +11,38 @@ use Illuminate\Support\Facades\Route;
 Route::view('/', 'home')->name('home');
 Route::view('/pricing', 'pricing')->name('pricing');
 
-Route::middleware('guest')->group(function (): void {
-    Route::view('/admin/login', 'admin.login')->name('admin.login');
+Route::get('/admin', function () {
+    if (Auth::check()) {
+        return redirect()->route('admin.dashboard');
+    }
 
-    Route::post('/admin/login', function (Request $request) {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
-        ]);
+    return view('admin.login');
+})->name('admin.login');
 
-        if (Auth::attempt($credentials, $request->boolean('remember'))) {
-            $request->session()->regenerate();
+$handleAdminLogin = function (Request $request) {
+    $credentials = $request->validate([
+        'email' => ['required', 'email'],
+        'password' => ['required', 'string'],
+    ]);
 
-            return redirect()->intended(route('admin.dashboard', absolute: false));
-        }
+    if (Auth::attempt($credentials, $request->boolean('remember'))) {
+        $request->session()->regenerate();
 
-        return back()
-            ->withErrors(['email' => 'The provided credentials do not match our records.'])
-            ->onlyInput('email');
-    })->name('admin.login.submit');
+        return redirect()->intended(route('admin.dashboard', absolute: false));
+    }
+
+    return back()
+        ->withErrors(['email' => 'The provided credentials do not match our records.'])
+        ->onlyInput('email');
+};
+
+Route::get('/admin/login', function () {
+    return redirect()->route('admin.login');
+});
+
+Route::middleware('guest')->group(function () use ($handleAdminLogin): void {
+    Route::post('/admin', $handleAdminLogin)->name('admin.login.submit');
+    Route::post('/admin/login', $handleAdminLogin);
 });
 
 Route::middleware('auth')->group(function (): void {
